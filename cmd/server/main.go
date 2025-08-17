@@ -36,7 +36,6 @@ func main() {
 	routes.ProductExternalRoutes(api, *cfg, db.SqlDB)
 
 	routes.SetupAllRoutes(api, db.SqlDB)
-	log.Logger.Info("Server starting on %s:%s", cfg.Server.Host, cfg.Server.Port)
 	r.Run(cfg.Server.Host + ":" + cfg.Server.Port)
 
 }

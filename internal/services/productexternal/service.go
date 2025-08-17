@@ -38,7 +38,6 @@ func (repo *ProductExternal) getCategoryAndSubCategory(ctx context.Context, cate
 	return int(categoryID.Int64), 1, nil
 }
 
-// FIXED: Method untuk process products dari Digiflazz
 func (pe *ProductExternal) GetProductDigiflazz(ctx context.Context, data []*digiflazz.InternalProduct) ([]*digiflazz.InternalProduct, error) {
 	var processedProducts []*digiflazz.InternalProduct
 
@@ -89,7 +88,7 @@ func (pe *ProductExternal) GetProductDigiflazz(ctx context.Context, data []*digi
 func (pe *ProductExternal) SaveProducts(ctx context.Context, product *digiflazz.InternalProduct) error {
 	log.Printf("=== PROCESSING PRODUCT: %s ===", product.ProviderCode)
 
-	// Debug overflow check (dari kode sebelumnya)
+	// Debug overflow check
 	const maxInt32 = 2147483647
 	const minInt32 = -2147483648
 
@@ -109,16 +108,16 @@ func (pe *ProductExternal) SaveProducts(ctx context.Context, product *digiflazz.
 	}
 	defer tx.Rollback()
 
-	// 1. Save/Update Provider Product
-	err = pe.saveOrUpdateProviderProduct(ctx, tx, product)
-	if err != nil {
-		return fmt.Errorf("failed to save provider product: %v", err)
-	}
-
-	// 2. Save/Update Main Product
-	err = pe.saveOrUpdateMainProduct(ctx, tx, product)
+	// 1. PERTAMA: Save/Update Main Product dan dapatkan product_id
+	productID, err := pe.saveOrUpdateMainProduct(ctx, tx, product)
 	if err != nil {
 		return fmt.Errorf("failed to save main product: %v", err)
+	}
+
+	// 2. KEDUA: Save/Update Provider Product dengan product_id yang didapat
+	err = pe.saveOrUpdateProviderProduct(ctx, tx, product, productID)
+	if err != nil {
+		return fmt.Errorf("failed to save provider product: %v", err)
 	}
 
 	// Commit transaction
@@ -126,80 +125,13 @@ func (pe *ProductExternal) SaveProducts(ctx context.Context, product *digiflazz.
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	log.Printf("=== SUCCESS PROCESSING: %s ===", product.ProviderCode)
+	log.Printf("=== SUCCESS PROCESSING: %s (Product ID: %d) ===", product.ProviderCode, productID)
 	return nil
 }
 
-// Helper function untuk save/update provider_products
-func (pe *ProductExternal) saveOrUpdateProviderProduct(ctx context.Context, tx *sql.Tx, product *digiflazz.InternalProduct) error {
-	// Check if provider product exists
-	var existingID int
-	checkQuery := `
-		SELECT id FROM provider_products 
-		WHERE provider_code = $1 AND provider_id = (SELECT id FROM providers WHERE slug = $2)`
-
-	err := tx.QueryRowContext(ctx, checkQuery, product.ProviderCode, product.Provider).Scan(&existingID)
-
-	if err == sql.ErrNoRows {
-		// Insert new provider product
-		log.Printf("Inserting new provider product: %s", product.ProviderCode)
-
-		insertQuery := `
-			INSERT INTO provider_products 
-			(provider_id, provider_code, provider_name, cost_price, selling_price, 
-			 profit_margin, stock, status, is_available, created_at, updated_at)
-			VALUES 
-			((SELECT id FROM providers WHERE slug = $1), $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`
-
-		_, err = tx.ExecContext(ctx, insertQuery,
-			product.Provider,
-			product.ProviderCode,
-			product.ProviderName,
-			product.CostPrice,
-			product.SellingPrice,
-			product.ProfitMargin,
-			product.Stock,
-			product.Status,
-			product.IsActive)
-
-		if err != nil {
-			log.Printf("INSERT ERROR provider product %s: %v", product.ProviderCode, err)
-			return err
-		}
-	} else if err != nil {
-		return fmt.Errorf("failed to check existing provider product: %v", err)
-	} else {
-		// Update existing provider product
-		log.Printf("Updating existing provider product: %s (ID: %d)", product.ProviderCode, existingID)
-
-		updateQuery := `
-			UPDATE provider_products 
-			SET provider_name = $1, cost_price = $2, selling_price = $3, 
-				profit_margin = $4, stock = $5, status = $6, is_available = $7, 
-				updated_at = NOW()
-			WHERE id = $8`
-
-		_, err = tx.ExecContext(ctx, updateQuery,
-			product.ProviderName,
-			product.CostPrice,
-			product.SellingPrice,
-			product.ProfitMargin,
-			product.Stock,
-			product.Status,
-			product.IsActive,
-			existingID)
-
-		if err != nil {
-			log.Printf("UPDATE ERROR provider product %s: %v", product.ProviderCode, err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (pe *ProductExternal) saveOrUpdateMainProduct(ctx context.Context, tx *sql.Tx, product *digiflazz.InternalProduct) error {
-	// Check if main product exists (berdasarkan provider_code atau kriteria lain)
+// UPDATED: saveOrUpdateMainProduct sekarang return product_id
+func (pe *ProductExternal) saveOrUpdateMainProduct(ctx context.Context, tx *sql.Tx, product *digiflazz.InternalProduct) (int, error) {
+	// Check if main product exists
 	var existingProductID int
 	checkMainQuery := `
 		SELECT id FROM products 
@@ -209,37 +141,41 @@ func (pe *ProductExternal) saveOrUpdateMainProduct(ctx context.Context, tx *sql.
 	err := tx.QueryRowContext(ctx, checkMainQuery, product.ProviderName, searchPattern).Scan(&existingProductID)
 
 	if err == sql.ErrNoRows {
-		// Insert new main product
+		// Insert new main product dan return ID-nya
 		log.Printf("Inserting new main product for: %s", product.ProviderCode)
-
-		// Mapping category berdasarkan provider atau product type
 
 		insertMainQuery := `
 			INSERT INTO products (
 				category_id, sub_category_id, name, description, price, original_price,
 				denomination, denomination_type, sort_order, status, stock, 
 				created_at, updated_at
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+			RETURNING id`
 
-		_, err = tx.ExecContext(ctx, insertMainQuery,
+		var newProductID int
+		err = tx.QueryRowContext(ctx, insertMainQuery,
 			product.CategoryID,
 			product.SubCategoryID,
 			product.ProviderName,
 			fmt.Sprintf("Provider: %s, Code: %s", product.Provider, product.ProviderCode),
 			product.SellingPrice,
 			product.CostPrice,
-			pe.getDenomination(product),     // Extract dari product name/code
-			pe.getDenominationType(product), // Mobile, Game, etc
-			pe.getSortOrder(product),        // Berdasarkan kategori
+			pe.getDenomination(product),
+			pe.getDenominationType(product),
+			pe.getSortOrder(product),
 			product.Status,
-			product.Stock)
+			product.Stock).Scan(&newProductID)
 
 		if err != nil {
 			log.Printf("INSERT ERROR main product %s: %v", product.ProviderCode, err)
-			return err
+			return 0, err
 		}
+
+		log.Printf("Successfully inserted new product with ID: %d", newProductID)
+		return newProductID, nil
+
 	} else if err != nil {
-		return fmt.Errorf("failed to check existing main product: %v", err)
+		return 0, fmt.Errorf("failed to check existing main product: %v", err)
 	} else {
 		// Update existing main product
 		log.Printf("Updating existing main product: %s (ID: %d)", product.ProviderName, existingProductID)
@@ -259,8 +195,84 @@ func (pe *ProductExternal) saveOrUpdateMainProduct(ctx context.Context, tx *sql.
 
 		if err != nil {
 			log.Printf("UPDATE ERROR main product %s: %v", product.ProviderCode, err)
+			return 0, err
+		}
+
+		log.Printf("Successfully updated existing product with ID: %d", existingProductID)
+		return existingProductID, nil
+	}
+}
+
+// UPDATED: Helper function untuk save/update provider_products dengan product_id
+func (pe *ProductExternal) saveOrUpdateProviderProduct(ctx context.Context, tx *sql.Tx, product *digiflazz.InternalProduct, productID int) error {
+	// Check if provider product exists
+	var existingID int
+	checkQuery := `
+		SELECT id FROM provider_products 
+		WHERE provider_code = $1 AND provider_id = (SELECT id FROM providers WHERE slug = $2)`
+
+	err := tx.QueryRowContext(ctx, checkQuery, product.ProviderCode, product.Provider).Scan(&existingID)
+
+	if err == sql.ErrNoRows {
+		// Insert new provider product DENGAN product_id
+		log.Printf("Inserting new provider product: %s for product ID: %d", product.ProviderCode, productID)
+
+		insertQuery := `
+			INSERT INTO provider_products 
+			(provider_id, product_id, provider_code, provider_name, cost_price, selling_price, 
+			 profit_margin, stock, status, is_available, created_at, updated_at)
+			VALUES 
+			((SELECT id FROM providers WHERE slug = $1), $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())`
+
+		_, err = tx.ExecContext(ctx, insertQuery,
+			product.Provider,
+			productID, // INI YANG PENTING: product_id dari main products table
+			product.ProviderCode,
+			product.ProviderName,
+			product.CostPrice,
+			product.SellingPrice,
+			product.ProfitMargin,
+			product.Stock,
+			product.Status,
+			product.IsActive)
+
+		if err != nil {
+			log.Printf("INSERT ERROR provider product %s: %v", product.ProviderCode, err)
 			return err
 		}
+
+		log.Printf("Successfully inserted provider product for product ID: %d", productID)
+
+	} else if err != nil {
+		return fmt.Errorf("failed to check existing provider product: %v", err)
+	} else {
+		// Update existing provider product
+		log.Printf("Updating existing provider product: %s (ID: %d)", product.ProviderCode, existingID)
+
+		updateQuery := `
+			UPDATE provider_products 
+			SET provider_name = $1, cost_price = $2, selling_price = $3, 
+				profit_margin = $4, stock = $5, status = $6, is_available = $7, 
+				product_id = $8, updated_at = NOW()
+			WHERE id = $9`
+
+		_, err = tx.ExecContext(ctx, updateQuery,
+			product.ProviderName,
+			product.CostPrice,
+			product.SellingPrice,
+			product.ProfitMargin,
+			product.Stock,
+			product.Status,
+			product.IsActive,
+			productID, // Update product_id juga
+			existingID)
+
+		if err != nil {
+			log.Printf("UPDATE ERROR provider product %s: %v", product.ProviderCode, err)
+			return err
+		}
+
+		log.Printf("Successfully updated provider product ID: %d with product ID: %d", existingID, productID)
 	}
 
 	return nil

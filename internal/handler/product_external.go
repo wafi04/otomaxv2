@@ -112,42 +112,7 @@ func (peh *ProductExternalHandler) mapDigiflazzToInternalProducts(digiflazzProdu
 	return internalProducts
 }
 
-// Tambahan: Debug function untuk test specific products
-func (peh *ProductExternalHandler) debugSpecificProduct(productCode string, costPrice int) {
-	sellingPrice := peh.calculateSellingPrice(costPrice)
-	profitMargin := peh.calculateProfitMargin(costPrice, sellingPrice)
 
-	log.Printf("=== DEBUG %s ===", productCode)
-	log.Printf("Cost Price: %d", costPrice)
-	log.Printf("Selling Price: %d", sellingPrice)
-	log.Printf("Profit Margin: %v", profitMargin)
-
-	// Manual calculation check
-	if costPrice > 0 {
-		manualMargin := float64(sellingPrice-costPrice) * 100.0 / float64(costPrice)
-		log.Printf("Manual Margin: %.2f%%", manualMargin)
-		log.Printf("Manual Rounded: %.0f", math.Round(manualMargin))
-	}
-	log.Printf("==================")
-}
-
-// Test untuk products yang bermasalah
-func (peh *ProductExternalHandler) testProblematicProducts() {
-	// Test dengan products yang error dari log
-	testProducts := []struct {
-		code  string
-		price int
-	}{
-		{"ax10", 10000},    // Contoh price
-		{"ff12", 15000},    // Contoh price
-		{"ml10", 20000},    // Contoh price
-		{"pln100", 100000}, // Contoh price
-	}
-
-	for _, tp := range testProducts {
-		peh.debugSpecificProduct(tp.code, tp.price)
-	}
-}
 func (peh *ProductExternalHandler) calculateSellingPrice(costPrice int) int {
 	// Contoh: markup 15%
 	return int(math.Round(float64(costPrice) * 1.15))

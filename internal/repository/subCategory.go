@@ -58,7 +58,7 @@ func (repo *SubCategoryRepository) GetAll(ctx context.Context, skip, limit int, 
 		SELECT COUNT(*) 
 		FROM sub_categories
 		WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR code ILIKE '%' || $1 || '%')
-		  AND ($2 = '' OR status = $2)
+		  AND ($2 = '' OR is_active = $2)
 	`
 
 	var totalCount int
@@ -70,10 +70,10 @@ func (repo *SubCategoryRepository) GetAll(ctx context.Context, skip, limit int, 
 
 	// Query untuk mendapatkan data dengan pagination
 	query := `
-		SELECT sc.id, sc.category_id, sc.code, sc.name, sc.status
+		SELECT sc.id, sc.category_id, sc.code, sc.name, sc.is_active
 		FROM sub_categories sc
 		WHERE ($1 = '' OR sc.name ILIKE '%' || $1 || '%' OR sc.code ILIKE '%' || $1 || '%')
-		  AND ($2 = '' OR sc.status = $2)
+		  AND ($2 = '' OR sc.is_active = $2)
 		LIMIT $3 OFFSET $4
 	`
 

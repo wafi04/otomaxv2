@@ -11,5 +11,6 @@ func SetupAllRoutes(r *gin.RouterGroup, DB *sql.DB) {
 	CategoryRoutes(r, DB)
 	NewsRoutes(r, DB)
 	MethodRoutes(r, DB)
+	ProductRoutes(r,DB)
 
 }
