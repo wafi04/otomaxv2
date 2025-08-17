@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -130,6 +131,73 @@ func (repo *MethodRepository) GetByCode(ctx context.Context, code string) (*mode
 	return &method, nil
 }
 
+type MethodGroupResponse struct {
+	Type    string             `json:"type"`
+	Methods []model.MethodData `json:"methods"`
+}
+
+func (repo *MethodRepository) GetAllGroupedByType(ctx context.Context) ([]MethodGroupResponse, error) {
+	query := `
+		SELECT id, code, name, description, type, min_amount, max_amount,
+			   fee, fee_type, status, image, created_at, updated_at
+		FROM payment_methods 
+		WHERE status = 'active'
+		ORDER BY type, name`
+
+	rows, err := repo.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Map untuk mengelompokkan berdasarkan type
+	methodGroups := make(map[string][]model.MethodData)
+
+	for rows.Next() {
+		var method model.MethodData
+		err := rows.Scan(
+			&method.Id,
+			&method.Code,
+			&method.Name,
+			&method.Description,
+			&method.Type,
+			&method.MinAmount,
+			&method.MaxAmount,
+			&method.Fee,
+			&method.FeeType,
+			&method.Status,
+			&method.Image,
+			&method.CreatedAt,
+			&method.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Kelompokkan berdasarkan type
+		methodGroups[method.Type] = append(methodGroups[method.Type], method)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Convert map ke slice untuk response
+	var result []MethodGroupResponse
+	for methodType, methods := range methodGroups {
+		result = append(result, MethodGroupResponse{
+			Type:    methodType,
+			Methods: methods,
+		})
+	}
+
+	// Sort berdasarkan type name untuk konsistensi
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Type < result[j].Type
+	})
+
+	return result, nil
+}
 func (repo *MethodRepository) GetAll(ctx context.Context, skip, limit int, search, filterType, status string) ([]model.MethodData, int, error) {
 	// Debug: Log semua parameter yang masuk
 

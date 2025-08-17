@@ -13,25 +13,26 @@ import (
 type Config struct {
 	// Server Configuration
 	Server ServerConfig `mapstructure:"server"`
-	
+
+	Digiflazz DigiflazzConfig `mapstructure:"digiflazzconfig"`
 	// Database Configuration
 	Database DatabaseConfig `mapstructure:"database"`
-	
+
 	// Redis Configuration
 	Redis RedisConfig `mapstructure:"redis"`
-	
+
 	// JWT Configuration
 	JWT JWTConfig `mapstructure:"jwt"`
-	
+
 	// Payment Gateway Configuration
 	PaymentGateway PaymentGatewayConfig `mapstructure:"payment_gateway"`
-	
+
 	// External API Configuration
 	ExternalAPI ExternalAPIConfig `mapstructure:"external_api"`
-	
+
 	// Logging Configuration
 	Logging LoggingConfig `mapstructure:"logging"`
-	
+
 	// Application Configuration
 	App AppConfig `mapstructure:"app"`
 }
@@ -72,10 +73,10 @@ type RedisConfig struct {
 }
 
 type JWTConfig struct {
-	SecretKey      string        `mapstructure:"secret_key"`
-	ExpireDuration time.Duration `mapstructure:"expire_duration"`
+	SecretKey       string        `mapstructure:"secret_key"`
+	ExpireDuration  time.Duration `mapstructure:"expire_duration"`
 	RefreshDuration time.Duration `mapstructure:"refresh_duration"`
-	Issuer         string        `mapstructure:"issuer"`
+	Issuer          string        `mapstructure:"issuer"`
 }
 
 type PaymentGatewayConfig struct {
@@ -85,21 +86,26 @@ type PaymentGatewayConfig struct {
 }
 
 type MidtransConfig struct {
-	ServerKey    string `mapstructure:"server_key"`
-	ClientKey    string `mapstructure:"client_key"`
-	MerchantID   string `mapstructure:"merchant_id"`
-	Environment  string `mapstructure:"environment"` // sandbox, production
+	ServerKey       string `mapstructure:"server_key"`
+	ClientKey       string `mapstructure:"client_key"`
+	MerchantID      string `mapstructure:"merchant_id"`
+	Environment     string `mapstructure:"environment"` // sandbox, production
 	NotificationURL string `mapstructure:"notification_url"`
-	ReturnURL    string `mapstructure:"return_url"`
-	UnfinishURL  string `mapstructure:"unfinish_url"`
-	ErrorURL     string `mapstructure:"error_url"`
+	ReturnURL       string `mapstructure:"return_url"`
+	UnfinishURL     string `mapstructure:"unfinish_url"`
+	ErrorURL        string `mapstructure:"error_url"`
+}
+
+type DigiflazzConfig struct {
+	DigiUsername string `mapstructure:"digiusername"`
+	DigiKey      string `mapstructure:"digikey"`
 }
 
 type XenditConfig struct {
-	SecretKey   string `mapstructure:"secret_key"`
+	SecretKey     string `mapstructure:"secret_key"`
 	CallbackToken string `mapstructure:"callback_token"`
-	Environment string `mapstructure:"environment"`
-	WebhookURL  string `mapstructure:"webhook_url"`
+	Environment   string `mapstructure:"environment"`
+	WebhookURL    string `mapstructure:"webhook_url"`
 }
 
 type GoPayConfig struct {
@@ -118,41 +124,41 @@ type ExternalAPIConfig struct {
 }
 
 type TelkomselConfig struct {
-	BaseURL   string `mapstructure:"base_url"`
-	Username  string `mapstructure:"username"`
-	Password  string `mapstructure:"password"`
-	APIKey    string `mapstructure:"api_key"`
-	Timeout   time.Duration `mapstructure:"timeout"`
+	BaseURL  string        `mapstructure:"base_url"`
+	Username string        `mapstructure:"username"`
+	Password string        `mapstructure:"password"`
+	APIKey   string        `mapstructure:"api_key"`
+	Timeout  time.Duration `mapstructure:"timeout"`
 }
 
 type IndosatConfig struct {
-	BaseURL   string `mapstructure:"base_url"`
-	Username  string `mapstructure:"username"`
-	Password  string `mapstructure:"password"`
-	APIKey    string `mapstructure:"api_key"`
-	Timeout   time.Duration `mapstructure:"timeout"`
+	BaseURL  string        `mapstructure:"base_url"`
+	Username string        `mapstructure:"username"`
+	Password string        `mapstructure:"password"`
+	APIKey   string        `mapstructure:"api_key"`
+	Timeout  time.Duration `mapstructure:"timeout"`
 }
 
 type XLConfig struct {
-	BaseURL   string `mapstructure:"base_url"`
-	Username  string `mapstructure:"username"`
-	Password  string `mapstructure:"password"`
-	APIKey    string `mapstructure:"api_key"`
-	Timeout   time.Duration `mapstructure:"timeout"`
+	BaseURL  string        `mapstructure:"base_url"`
+	Username string        `mapstructure:"username"`
+	Password string        `mapstructure:"password"`
+	APIKey   string        `mapstructure:"api_key"`
+	Timeout  time.Duration `mapstructure:"timeout"`
 }
 
 type SteamConfig struct {
-	BaseURL string `mapstructure:"base_url"`
-	APIKey  string `mapstructure:"api_key"`
+	BaseURL string        `mapstructure:"base_url"`
+	APIKey  string        `mapstructure:"api_key"`
 	Timeout time.Duration `mapstructure:"timeout"`
 }
 
 type GarenaConfig struct {
-	BaseURL   string `mapstructure:"base_url"`
-	Username  string `mapstructure:"username"`
-	Password  string `mapstructure:"password"`
-	APIKey    string `mapstructure:"api_key"`
-	Timeout   time.Duration `mapstructure:"timeout"`
+	BaseURL  string        `mapstructure:"base_url"`
+	Username string        `mapstructure:"username"`
+	Password string        `mapstructure:"password"`
+	APIKey   string        `mapstructure:"api_key"`
+	Timeout  time.Duration `mapstructure:"timeout"`
 }
 
 type LoggingConfig struct {
@@ -173,10 +179,19 @@ type AppConfig struct {
 
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (*Config, error) {
-	// Load .env file if exists
-	_ = godotenv.Load()
+	if err := godotenv.Load(".env"); err != nil {
+		if err := godotenv.Load("../.env"); err != nil {
+			if err := godotenv.Load("../../.env"); err != nil {
+				println("Warning: .env file not found, using environment variables only")
+			}
+		}
+	}
 
 	config := &Config{
+		Digiflazz: DigiflazzConfig{
+			DigiUsername: getEnv("DIGIFLAZZ_USERNAME", ""),
+			DigiKey:      getEnv("DIGIFLAZZ_KEY", ""),
+		},
 		Server: ServerConfig{
 			Host:         getEnv("SERVER_HOST", "localhost"),
 			Port:         getEnv("SERVER_PORT", "8080"),
@@ -189,7 +204,7 @@ func LoadConfig() (*Config, error) {
 			Host:            getEnv("DB_HOST", "localhost"),
 			Port:            getEnv("DB_PORT", "5432"),
 			Username:        getEnv("DB_USERNAME", "postgres"),
-			Password:        getEnv("DB_PASSWORD", ""),
+			Password:        getEnv("DB_PASSWORD", "postgres"),
 			DBName:          getEnv("DB_NAME", "topup_db"),
 			SSLMode:         getEnv("DB_SSL_MODE", "disable"),
 			Timezone:        getEnv("DB_TIMEZONE", "Asia/Jakarta"),

@@ -25,8 +25,10 @@ func (s *CategoryService) GetCategoryByID(ctx context.Context, id int) (*model.C
 	return s.categoryRepo.GetByID(ctx, id)
 }
 
-func (s *CategoryService) GetCategoryByCode(ctx context.Context, code string) (*model.Category, error) {
-	return s.categoryRepo.GetByCode(ctx, code)
+func (s *CategoryService) GetCategoryByCode(ctx context.Context, code string, subCategoryId *int) (*model.CategoryCodeResponse, error) {
+	return s.categoryRepo.GetByCodeWithFilter(ctx, code, &repository.CategoryFilter{
+		SubCategoryID: subCategoryId,
+	})
 }
 
 func (s *CategoryService) GetAllCategories(ctx context.Context, skip, limit int, search, filterType string, active string) ([]model.Category, int, error) {

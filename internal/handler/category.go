@@ -37,13 +37,36 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 	response.SuccessResponse(c, http.StatusCreated, "Category created successfully", nil)
 }
-
 func (h *CategoryHandler) GetCategoryByCode(c *gin.Context) {
 	codeParam := c.Param("code")
+	subCategoryIdStr := c.Query("subCategoryId")
 
-	cat, err := h.categoryService.GetCategoryByCode(c.Request.Context(), codeParam)
+	var subCategoryId *int
+
+	// Cek apakah subCategoryId ada dan tidak kosong
+	if subCategoryIdStr != "" {
+		subCategoryIdInt, err := strconv.Atoi(subCategoryIdStr)
+		if err != nil {
+			response.ErrorResponse(c, http.StatusBadRequest, "Invalid subCategoryId format", err.Error())
+			return
+		}
+
+		// Set pointer ke value jika valid dan > 0
+		if subCategoryIdInt > 0 {
+			subCategoryId = &subCategoryIdInt
+		}
+	}
+
+	// Call service dengan parameter optional
+	cat, err := h.categoryService.GetCategoryByCode(c.Request.Context(), codeParam, subCategoryId)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusNotFound, "Category not found", err.Error())
+		response.ErrorResponse(c, http.StatusInternalServerError, "Failed to get category", err.Error())
+		return
+	}
+
+	// Jika category tidak ditemukan
+	if cat == nil {
+		response.ErrorResponse(c, http.StatusNotFound, "Category not found", "No category found with the given code")
 		return
 	}
 

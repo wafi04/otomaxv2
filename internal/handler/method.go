@@ -111,3 +111,14 @@ func (h *MethodHandler) Delete(c *gin.Context) {
 
 	response.SuccessResponse(c, http.StatusOK, "Method deleted successfully", nil)
 }
+
+func (h *MethodHandler) GetByGrub(c *gin.Context) {
+
+	data, err := h.methodService.GetAllGroupedByType(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete Method", err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, http.StatusOK, "Method deleted successfully", data)
+}

@@ -26,6 +26,11 @@ func (service *MethodService) GetAll(c context.Context, skip, limit int, search,
 
 }
 
+func (service *MethodService) GetAllGroupedByType(c context.Context) ([]repository.MethodGroupResponse, error) {
+	return service.Repo.GetAllGroupedByType(c)
+
+}
+
 func (service *MethodService) Update(c context.Context, id int, data model.UpdateMethodData) (*model.MethodData, error) {
 	return service.Repo.Update(c, id, &data)
 }
