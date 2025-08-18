@@ -24,6 +24,8 @@ type Config struct {
 	// JWT Configuration
 	JWT JWTConfig `mapstructure:"jwt"`
 
+	DuitkuConfig DuitkuConfig `mapstructure:"DuitkuConfig"`
+
 	// Payment Gateway Configuration
 	PaymentGateway PaymentGatewayConfig `mapstructure:"payment_gateway"`
 
@@ -80,9 +82,10 @@ type JWTConfig struct {
 }
 
 type PaymentGatewayConfig struct {
-	Midtrans MidtransConfig `mapstructure:"midtrans"`
-	Xendit   XenditConfig   `mapstructure:"xendit"`
-	GoPay    GoPayConfig    `mapstructure:"gopay"`
+	Midtrans     MidtransConfig `mapstructure:"midtrans"`
+	Xendit       XenditConfig   `mapstructure:"xendit"`
+	GoPay        GoPayConfig    `mapstructure:"gopay"`
+	DuitkuConfig DuitkuConfig   `mapstuctur:"duitku"`
 }
 
 type MidtransConfig struct {
@@ -106,6 +109,11 @@ type XenditConfig struct {
 	CallbackToken string `mapstructure:"callback_token"`
 	Environment   string `mapstructure:"environment"`
 	WebhookURL    string `mapstructure:"webhook_url"`
+}
+
+type DuitkuConfig struct {
+	DuitkuKey          string `mapstructure:"duitku_key"`
+	DuitkuMerchantCode string `mapstructure:"duitku_merchant_code"`
 }
 
 type GoPayConfig struct {
@@ -194,7 +202,7 @@ func LoadConfig() (*Config, error) {
 		},
 		Server: ServerConfig{
 			Host:         getEnv("SERVER_HOST", "localhost"),
-			Port:         getEnv("SERVER_PORT", "8080"),
+			Port:         getEnv("SERVER_PORT", "8081"),
 			Mode:         getEnv("SERVER_MODE", "debug"),
 			ReadTimeout:  getDurationEnv("SERVER_READ_TIMEOUT", 30*time.Second),
 			WriteTimeout: getDurationEnv("SERVER_WRITE_TIMEOUT", 30*time.Second),
@@ -240,6 +248,10 @@ func LoadConfig() (*Config, error) {
 				ReturnURL:       getEnv("MIDTRANS_RETURN_URL", ""),
 				UnfinishURL:     getEnv("MIDTRANS_UNFINISH_URL", ""),
 				ErrorURL:        getEnv("MIDTRANS_ERROR_URL", ""),
+			},
+			DuitkuConfig: DuitkuConfig{
+				DuitkuKey:          getEnv("DUITKU_KEY", ""),
+				DuitkuMerchantCode: getEnv("DUITKU_MERCHANT_CODE", ""),
 			},
 			Xendit: XenditConfig{
 				SecretKey:     getEnv("XENDIT_SECRET_KEY", ""),

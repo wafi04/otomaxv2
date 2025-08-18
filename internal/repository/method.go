@@ -150,7 +150,6 @@ func (repo *MethodRepository) GetAllGroupedByType(ctx context.Context) ([]Method
 	}
 	defer rows.Close()
 
-	// Map untuk mengelompokkan berdasarkan type
 	methodGroups := make(map[string][]model.MethodData)
 
 	for rows.Next() {
@@ -174,7 +173,6 @@ func (repo *MethodRepository) GetAllGroupedByType(ctx context.Context) ([]Method
 			return nil, err
 		}
 
-		// Kelompokkan berdasarkan type
 		methodGroups[method.Type] = append(methodGroups[method.Type], method)
 	}
 
@@ -182,7 +180,6 @@ func (repo *MethodRepository) GetAllGroupedByType(ctx context.Context) ([]Method
 		return nil, err
 	}
 
-	// Convert map ke slice untuk response
 	var result []MethodGroupResponse
 	for methodType, methods := range methodGroups {
 		result = append(result, MethodGroupResponse{
@@ -191,7 +188,6 @@ func (repo *MethodRepository) GetAllGroupedByType(ctx context.Context) ([]Method
 		})
 	}
 
-	// Sort berdasarkan type name untuk konsistensi
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Type < result[j].Type
 	})
@@ -199,9 +195,7 @@ func (repo *MethodRepository) GetAllGroupedByType(ctx context.Context) ([]Method
 	return result, nil
 }
 func (repo *MethodRepository) GetAll(ctx context.Context, skip, limit int, search, filterType, status string) ([]model.MethodData, int, error) {
-	// Debug: Log semua parameter yang masuk
 
-	// Count query - simplified untuk debug
 	countQuery := `SELECT COUNT(*) FROM payment_methods`
 
 	var totalCount int
