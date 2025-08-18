@@ -1,20 +1,20 @@
 services:
-  db: 
-    image: postgres:15
-    container_name: topup_db
-    ports:
-    - "5432:5432"
-    environment:
-      POSTGRES_DB: topup_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-        - ./db_data:/var/lib/postgresql/data 
-  
-  # redis:
-  #   image: redis:latest
-  #   container_name: redi_topup
+  # db:
+  #   image: postgres:15
+  #   container_name: topup_db
   #   ports:
-  #   - "6379:6379"
-  #   environtment:
-  #     REDIS
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_DB: topup_db
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #   volumes:
+  #     - ./db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    volumes:
+      - ./redis.conf:/etc/redis/redis.conf
+    ports:
+      - "6379:6379"

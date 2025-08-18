@@ -4,6 +4,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/wafi04/otomaxv2/internal/config"
+	"github.com/wafi04/otomaxv2/internal/handler"
 	"github.com/wafi04/otomaxv2/internal/routes"
 	"github.com/wafi04/otomaxv2/pkg/logger"
 )
@@ -32,6 +33,7 @@ func main() {
 	r.Use(cors.New(config))
 
 	api := r.Group("/api")
+		r.GET("/auth/google/callback", handler.GoogleCallbackHandler)
 
 	routes.ProductExternalRoutes(api, *cfg, db.SqlDB)
 
